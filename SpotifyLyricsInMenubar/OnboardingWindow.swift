@@ -457,7 +457,7 @@ struct ApiView: View {
                     }
                     // replace button with spinner
                     // check if the cookie is legit
-                   // isLoading = false
+                    // isLoading = false
                     //isShowingDetailView = true
                 }
                 .buttonStyle(.borderedProminent)
@@ -468,9 +468,9 @@ struct ApiView: View {
         }
         .padding(.horizontal, 20)
         .navigationBarBackButtonHidden(true)
-//        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { newValue in
-//            dismiss()
-//        }
+        //        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { newValue in
+        //            dismiss()
+        //        }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("didLogIn"))) { newValue in
             loggedIn = true
         }
@@ -479,7 +479,7 @@ struct ApiView: View {
                 loggedIn = true
             }
         }
-         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willMiniaturizeNotification)) { newValue in
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willMiniaturizeNotification)) { newValue in
             dismiss()
         }
         .onChange(of: controlActiveState) { newState in
@@ -491,22 +491,28 @@ struct ApiView: View {
             }
         }
     }
-
+    
     
     func checkForLogin() async {
         isLoading = true
         do {
-            let serverTimeRequest = URLRequest(url: .init(string: "https://open.spotify.com/server-time")!)
+            let serverTimeRequest = URLRequest(url: .init(string: "https://open.spotify.com/api/server-time")!)
             let serverTimeData = try await viewModel.shared.fakeSpotifyUserAgentSession.data(for: serverTimeRequest).0
             let serverTime = try JSONDecoder().decode(SpotifyServerTime.self, from: serverTimeData).serverTime
-            if let totp = viewModel.TOTPGenerator.generate(serverTimeSeconds: serverTime), let url = URL(string: "https://open.spotify.com/get_access_token?reason=transport&productType=web-player&totp=\(totp)&totpServer=\(Int(Date().timeIntervalSince1970))&totpVer=5&sTime=\(serverTime)&cTime=\(serverTime)") {
+            
+            if let totp = viewModel.TOTPGenerator.generate(serverTimeSeconds: serverTime),
+               let url = URL(string: "https://open.spotify.com/api/token?reason=transport&productType=web-player&totp=\(totp)&totpServer=\(totp)&totpVer=18") {
+                
                 var request = URLRequest(url: url)
                 request.setValue("sp_dc=\(spDcCookie)", forHTTPHeaderField: "Cookie")
+                
                 let accessTokenData = try await viewModel.shared.fakeSpotifyUserAgentSession.data(for: request)
-                print(String(decoding: accessTokenData.0, as: UTF8.self))
+                print("Response: \(String(decoding: accessTokenData.0, as: UTF8.self))")
+                
                 do {
                     let access = try JSONDecoder().decode(accessTokenJSON.self, from: accessTokenData.0)
                     viewModel.shared.accessToken = access
+                    
                     if await !viewModel.shared.fetchHomeTest() {
                         viewModel.shared.accessToken = nil
                         self.error = true
@@ -522,51 +528,24 @@ struct ApiView: View {
                 } catch {
                     self.error = true
                     isLoading = false
-//                    do {
-                        let errorWrap = try? JSONDecoder().decode(ErrorWrapper.self, from: accessTokenData.0)
+                    print("JSON decode error: \(error)")
+                    
+                    let errorWrap = try? JSONDecoder().decode(ErrorWrapper.self, from: accessTokenData.0)
                     if errorWrap?.error.code == 401 {
                         loggedIn = false
-                        }
-//                    } catch {
-//                        // silently fail
-//                    }
-//                    print("json error decoding the access token, therefore bad cookie therefore un-onboard")
+                    }
                 }
-                
+            } else {
+                print("Failed to create valid URL or generate TOTP")
+                self.error = true
+                isLoading = false
             }
         } catch {
             self.error = true
             isLoading = false
+            print("Network or server time error: \(error)")
         }
-//        if let url = URL(string: "https://open.spotify.com/get_access_token?reason=transport&productType=web_player"){//&totp=\(getTotp())&totpVer=5&ts=\(getTimestamp())") {
-//            do {
-//                var request = URLRequest(url: url)
-//                request.setValue("sp_dc=\(spDcCookie)", forHTTPHeaderField: "Cookie")
-//                let accessTokenData = try await URLSession.shared.data(for: request)
-//                print(String(decoding: accessTokenData.0, as: UTF8.self))
-//                do {
-//                    try JSONDecoder().decode(accessTokenJSON.self, from: accessTokenData.0)
-//                    
-//                    print("ACCESS TOKEN IS SAVED")
-//                    // set onboarded to true here, no need to wait for user to finish selecting truncation
-//                    UserDefaults().set(true, forKey: "hasOnboarded")
-//                    error = false
-//                    isLoading = false
-//                    isShowingDetailView = true
-//                }
-//                catch {
-//                    print("JSON ERROR CAUGHT")
-//                    self.error = true
-//                    isLoading = false
-//                }
-//            }
-//            catch {
-//                self.error = true
-//                isLoading = false
-//            }
-//        }
-    }
-}
+    }}
 
 struct FinalTruncationView: View {
     @Environment(\.dismiss) var dismiss

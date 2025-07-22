@@ -97,7 +97,7 @@ import IPADic
     let coreDataContainer: NSPersistentContainer
     
     // Logging / Analytics
-    let amplitude = Amplitude(configuration: .init(apiKey: amplitudeKey))
+//    let amplitude = Amplitude(configuration: .init(apiKey: amplitudeKey))
     
     // Sparkle / Update Controller
     let updaterController: SPUStandardUpdaterController
@@ -170,7 +170,9 @@ import IPADic
     
         
         // Set user agents for Spotify and LRCLIB
-        fakeSpotifyUserAgentconfig.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15"]
+        fakeSpotifyUserAgentconfig.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15" ,  "Referer": "https://open.spotify.com/",        "Accept": "application/json",
+
+                                                            "App-Platform": "WebPlayer",]
         fakeSpotifyUserAgentSession = URLSession(configuration: fakeSpotifyUserAgentconfig)
         LRCLIBUserAgentConfig.httpAdditionalHeaders = ["User-Agent": "Lyric Fever v2.2 (https://github.com/aviwad/LyricFever)"]
         LRCLIBUserAgentSession = URLSession(configuration: LRCLIBUserAgentConfig)
@@ -589,7 +591,7 @@ import IPADic
         if let lyrics = fetchFromCoreData(for: trackID) {
             print("got lyrics from core data :D \(trackID) \(trackName)")
             try Task.checkCancellation()
-            amplitude.track(eventType: "CoreData Fetch")
+//            amplitude.track(eventType: "CoreData Fetch")
             return lyrics
         }
         print("no lyrics from core data, going to download from internet \(trackID) \(trackName)")
@@ -599,7 +601,7 @@ import IPADic
     // Thanks to Mx-lris
     enum TOTPGenerator {
          static func generate(serverTimeSeconds: Int) -> String? {
-             let secretCipher = [12, 56, 76, 33, 88, 44, 88, 33, 78, 78, 11, 66, 22, 22, 55, 69, 54]
+             let secretCipher = [70,60,33,57,92,120,90,33,32,62,62,55,126,93,66,35,108,68]
      
              var processed = [UInt8]()
              for (i, byte) in secretCipher.enumerated() {
@@ -621,6 +623,7 @@ import IPADic
              guard let totp = TOTP(secret: secretData, digits: 6, timeInterval: 30, algorithm: .sha1) else {
                  return nil
              }
+             
      
              return totp.generate(secondsPast1970: serverTimeSeconds)
          }
@@ -767,7 +770,7 @@ import IPADic
                 let lyricsArray = zip(songObject.lyrics.lyricsTimestamps, songObject.lyrics.lyricsWords).map { LyricLine(startTime: $0, words: $1) }
                 
                 try Task.checkCancellation()
-                amplitude.track(eventType: "Network Fetch")
+//                amplitude.track(eventType: "Network Fetch")
                 return lyricsArray
             } else {
                 print("F (no time synced lyrics)")
@@ -836,7 +839,7 @@ import IPADic
             }
             let songObject = SongObject(from: parser.lyrics, with: coreDataContainer.viewContext, trackID: trackID, trackName: trackName, duration: decoder.userInfo[CodingUserInfoKey.duration] as! TimeInterval)
             saveCoreData()
-            amplitude.track(eventType: "NetEase Fetch")
+//            amplitude.track(eventType: "NetEase Fetch")
             if spotifyOrAppleMusic {
                 if let artwork = (appleMusicScript?.currentTrack?.artworks?().firstObject as? MusicArtwork)?.data {
                     SpotifyColorData(trackID: trackID, context: coreDataContainer.viewContext, background: artwork.findWhiteTextLegibleMostSaturatedDominantColor())
@@ -880,7 +883,7 @@ import IPADic
             
             let songObject = SongObject(from: lrcLyrics, with: coreDataContainer.viewContext, trackID: trackID, trackName: trackName, duration: decoder.userInfo[CodingUserInfoKey.duration] as! TimeInterval)
             saveCoreData()
-            amplitude.track(eventType: "LRC Fetch")
+//            amplitude.track(eventType: "LRC Fetch")
             if spotifyOrAppleMusic {
                 if let artwork = (appleMusicScript?.currentTrack?.artworks?().firstObject as? MusicArtwork)?.data {
                     SpotifyColorData(trackID: trackID, context: coreDataContainer.viewContext, background: artwork.findWhiteTextLegibleMostSaturatedDominantColor())
