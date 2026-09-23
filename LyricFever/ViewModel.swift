@@ -24,7 +24,7 @@ import MediaRemoteAdapter
     static let shared = ViewModel()
     
     // Apple Music Tahoe broken AppleScript workaround
-    let musicController = MediaController(bundleIdentifier: "com.apple.Music")
+    let musicController = MediaController()
 //    var appleMusicUniqueIdentifier: String?
 
     var currentlyPlaying: String?
@@ -59,6 +59,9 @@ import MediaRemoteAdapter
                 guard self.currentPlayer == .appleMusic else {
                     return
                 }
+                if let data, data.payload.bundleIdentifier != "com.apple.Music" {
+                    return
+                }
                 guard let artwork = data?.payload.artwork else {
                     if self.currentlyPlaying == nil {
                         self.artworkImage = nil
@@ -66,12 +69,8 @@ import MediaRemoteAdapter
                     print("Apple Music Artwork Workaround: Ignoring No Artwork")
                     return
                 }
-                guard data?.payload.applicationName == "Music" else {
-                    return
-                }
                 self.artworkImage = artwork
             }
-            // This will only be called for Apple Music events
         }
         musicController.startListening()
     }

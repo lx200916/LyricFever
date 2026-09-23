@@ -72,6 +72,7 @@ class FloatingPanel<Content: View>: NSPanel {
     private let snapThreshold: CGFloat = 25.0
     private var dragStartMouseLocation: NSPoint?
     private var dragStartWindowOrigin: NSPoint?
+    private var closeGeneration = 0
 
     init(view: () -> Content,
              contentRect: NSRect,
@@ -91,6 +92,7 @@ class FloatingPanel<Content: View>: NSPanel {
         collectionBehavior.insert(.canJoinAllSpaces)
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
+        isMovable = false
         isMovableByWindowBackground = false
         hidesOnDeactivate = false
         backgroundColor = NSColor.clear
@@ -114,6 +116,7 @@ class FloatingPanel<Content: View>: NSPanel {
     }
     
     func fadeIn() {
+        closeGeneration += 1
         self.alphaValue = 0.0
         self.animator().alphaValue = 1.0
     }
@@ -127,8 +130,11 @@ class FloatingPanel<Content: View>: NSPanel {
     
      
     override func close() {
+        closeGeneration += 1
+        let generation = closeGeneration
         NSAnimationContext.runAnimationGroup { animation in
             animation.completionHandler = {
+                guard self.closeGeneration == generation else { return }
                 super.close()
             }
             self.animator().alphaValue = 0.0
@@ -146,16 +152,17 @@ class FloatingPanel<Content: View>: NSPanel {
     override func sendEvent(_ event: NSEvent) {
         switch event.type {
         case .leftMouseDown:
-            dragStartMouseLocation = NSEvent.mouseLocation
+            // Keep the entire drag sequence out of NSHostingView's mouse tracking.
+            dragStartMouseLocation = convertPoint(toScreen: event.locationInWindow)
             dragStartWindowOrigin = self.frame.origin
-            super.sendEvent(event)
+            isSnappedToCenter = false
         case .leftMouseDragged:
             guard let startMouse = dragStartMouseLocation,
                   let startOrigin = dragStartWindowOrigin else {
                 super.sendEvent(event)
                 return
             }
-            let currentMouse = NSEvent.mouseLocation
+            let currentMouse = convertPoint(toScreen: event.locationInWindow)
             let deltaX = currentMouse.x - startMouse.x
             let deltaY = currentMouse.y - startMouse.y
             var newOrigin = NSPoint(x: startOrigin.x + deltaX, y: startOrigin.y + deltaY)
@@ -176,12 +183,10 @@ class FloatingPanel<Content: View>: NSPanel {
             }
 
             self.setFrameOrigin(newOrigin)
-            // Don't call super — AppKit would otherwise also try to move the window
         case .leftMouseUp:
             dragStartMouseLocation = nil
             dragStartWindowOrigin = nil
             isSnappedToCenter = false
-            super.sendEvent(event)
         default:
             super.sendEvent(event)
         }
